@@ -1,0 +1,59 @@
+bundle:
+  name: eirgrid-smart-grid-lakehouse
+
+variables:
+  catalog:
+    description: Unity Catalog catalog name
+    default: eirgrid_dev
+  schema:
+    description: Target schema for pipeline output
+    default: pipeline_demo
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://dbc-9a708e28-4692.cloud.databricks.com
+
+  prod:
+    mode: production
+    workspace:
+      host: https://dbc-9a708e28-4692.cloud.databricks.com
+      # In production: replace with prod workspace URL
+
+resources:
+  pipelines:
+    eirgrid_pipeline:
+      name: eirgrid_bronze_to_gold
+      target: ${var.schema}
+      catalog: ${var.catalog}
+      serverless: true
+      libraries:
+        - notebook:
+            path: ./pipelines/my_transformation.py
+
+  jobs:
+    eirgrid_daily:
+      name: eirgrid_daily_pipeline
+      schedule:
+        quartz_cron_expression: "0 0 2 * * ?"
+        timezone_id: UTC
+      tasks:
+        - task_key: bronze_ingestion
+          notebook_task:
+            notebook_path: ./notebooks/01_bronze_ingestion.py
+          max_retries: 3
+          min_retry_interval_millis: 300000
+
+        - task_key: run_pipeline
+          depends_on:
+            - task_key: bronze_ingestion
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.eirgrid_pipeline.id}
+
+        - task_key: validate_gold
+          depends_on:
+            - task_key: run_pipeline
+          notebook_task:
+            notebook_path: ./notebooks/03_gold_aggregations.py
