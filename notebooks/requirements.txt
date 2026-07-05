@@ -1,1 +1,2 @@
 entsoe-py
+pandas>=3.0.0

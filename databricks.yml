@@ -57,3 +57,10 @@ resources:
             - task_key: run_pipeline
           notebook_task:
             notebook_path: ./notebooks/03_gold_aggregations.py
+
+        - task_key: run_maintenance
+          depends_on:
+            - task_key: validate_gold
+          notebook_task:
+            notebook_path: /Repos/main/dp750-lakehouse/notebooks/04_maintenance
+          job_cluster_key: main_cluster
